@@ -1,0 +1,51 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: pipeline
+      POSTGRES_PASSWORD: pipeline
+      POSTGRES_DB: pipeline
+    ports:
+      - "5433:5432"
+    volumes:
+      - pipeline_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pipeline"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "cd server && npm install && cd .. && node server/index.js"
+    environment:
+      NODE_ENV: development
+      SERVER_PORT: 8081
+      DATABASE_URL: postgresql://pipeline:pipeline@db:5432/pipeline
+      APP_URL: http://localhost:5173
+      PIPELINE_SESSION_SECRET: dev-session-secret
+      PIPELINE_INTERNAL_SYNC_TOKEN: dev-sync-token
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  vite:
+    image: node:20-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev:client -- --host 0.0.0.0"
+    environment:
+      VITE_API_PROXY_TARGET: http://api:8081
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/app
+    depends_on:
+      - api
+
+volumes:
+  pipeline_pg:

@@ -1,0 +1,20 @@
+{
+  "type": "commonjs",
+  "dependencies": {
+    "@google-cloud/firestore": "^7.11.6",
+    "@google-cloud/vertexai": "^1.12.0",
+    "@google/generative-ai": "^0.19.0",
+    "@googleapis/calendar": "^9.8.0",
+    "@googleapis/drive": "^11.0.0",
+    "@googleapis/gmail": "^16.1.1",
+    "connect-pg-simple": "^10.0.0",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.19.2",
+    "express-session": "^1.18.1",
+    "google-auth-library": "^10.6.2",
+    "helmet": "^8.1.0",
+    "pg": "^8.13.3"
+  }
+}
