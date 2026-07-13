@@ -1,6 +1,7 @@
 const { query } = require('../../db');
 const { getMailboxes, getGmailForMailbox, fetchRecentMessages } = require('../gmail');
 const { summarizeEmail } = require('../gemini');
+const { curateFromEmail, shouldSkipEmail } = require('../leadCurator');
 
 async function findContactByEmail(email) {
   if (!email) return null;
@@ -17,11 +18,12 @@ async function findContactByEmail(email) {
 async function syncMailbox(mailbox) {
   const gmail = await getGmailForMailbox(mailbox);
   if (!gmail) {
-    return { mailbox, synced: 0, skipped: true, reason: 'no_credentials' };
+    return { mailbox, synced: 0, leadsCreated: 0, skipped: true, reason: 'no_credentials' };
   }
 
-  const messages = await fetchRecentMessages(gmail, 30);
+  const messages = await fetchRecentMessages(gmail, 50);
   let synced = 0;
+  let leadsCreated = 0;
 
   for (const msg of messages) {
     const existing = await query(
@@ -30,17 +32,21 @@ async function syncMailbox(mailbox) {
     );
     if (existing.rows[0]) continue;
 
-    const contactEmail = msg.from?.includes('phoeniciantech.com') ? msg.to : msg.from;
+    const isOutbound = msg.from?.includes('phoeniciantech.com');
+    const contactEmail = isOutbound ? msg.to : msg.from;
     const contact = await findContactByEmail(contactEmail);
 
     let summary = msg.snippet;
-    try {
-      summary = await summarizeEmail(msg);
-    } catch (err) {
-      console.warn('[GMAIL-SYNC] Summary failed:', err.message);
+    const useAi = process.env.PIPELINE_SYNC_USE_AI === 'true';
+    if (useAi) {
+      try {
+        summary = await summarizeEmail(msg);
+      } catch (err) {
+        console.warn('[GMAIL-SYNC] Summary failed:', err.message);
+      }
     }
 
-    const triageStatus = contact ? 'matched' : 'pending';
+    let triageStatus = contact ? 'matched' : 'pending';
 
     const activity = await query(
       `INSERT INTO activities (type, occurred_at, summary, raw_ref, mailbox, metadata, triage_status)
@@ -69,8 +75,24 @@ async function syncMailbox(mailbox) {
           [contact.lead_id],
         );
       }
-    } else if (contactEmail && !contactEmail.includes('phoeniciantech.com')) {
-      // Unmatched external sender — stays in triage queue for manual review
+    } else if (contactEmail && !shouldSkipEmail(contactEmail)) {
+      const curated = await curateFromEmail({
+        email: contactEmail,
+        subject: msg.subject,
+        summary,
+        mailbox,
+        activityId: activity.rows[0].id,
+        fromHeader: msg.from,
+      });
+
+      if (curated) {
+        triageStatus = 'matched';
+        await query(
+          `UPDATE activities SET triage_status = 'matched' WHERE id = $1`,
+          [activity.rows[0].id],
+        );
+        if (curated.created) leadsCreated++;
+      }
     }
 
     synced++;
@@ -83,7 +105,7 @@ async function syncMailbox(mailbox) {
     [mailbox, String(Date.now())],
   );
 
-  return { mailbox, synced };
+  return { mailbox, synced, leadsCreated };
 }
 
 async function runGmailSync() {
@@ -94,7 +116,7 @@ async function runGmailSync() {
     try {
       const result = await syncMailbox(mailbox);
       results.push(result);
-      console.log(`[GMAIL-SYNC] ${mailbox}: synced ${result.synced}`);
+      console.log(`[GMAIL-SYNC] ${mailbox}: synced ${result.synced}, ${result.leadsCreated} new leads`);
     } catch (err) {
       console.error(`[GMAIL-SYNC] ${mailbox} failed:`, err.message);
       results.push({ mailbox, error: err.message });

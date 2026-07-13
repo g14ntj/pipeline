@@ -69,7 +69,13 @@ export type Lead = {
 export type DashboardData = {
   funnel: Record<string, number>;
   staleLeads: Lead[];
-  activeProjects: Array<{ id: string; name: string; status: string; organization_name?: string }>;
+  activeProjects: Array<{
+    id: string;
+    name: string;
+    status: string;
+    organization_name?: string;
+    metadata?: { github_repo?: string; cloud_run_service?: string; cloud_run_url?: string };
+  }>;
   outreachQueue: Array<{
     id: string;
     lead_title: string;
@@ -80,5 +86,7 @@ export type DashboardData = {
     last_name?: string;
   }>;
   openActionItems: Array<{ id: string; title: string; action_items: unknown[] }>;
-  syncStatus: Array<{ mailbox: string; sync_type: string; last_sync_at?: string }>;
+  syncStatus: Array<{ mailbox: string; sync_type: string; last_sync_at?: string; metadata?: Record<string, unknown> }>;
+  triageCount: number;
+  counts: { leads: number; contacts: number; organizations: number; projects: number; production_projects: number };
 };

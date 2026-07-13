@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/', async (_req, res, next) => {
   try {
-    const [funnel, stale, projects, outreach, actionItems, syncStatus] = await Promise.all([
+    const [funnel, stale, projects, outreach, actionItems, syncStatus, triageCount, counts] = await Promise.all([
       query(
         `SELECT stage, COUNT(*)::int AS count FROM leads GROUP BY stage`,
       ),
@@ -23,9 +23,11 @@ router.get('/', async (_req, res, next) => {
         `SELECT p.*, o.name AS organization_name
          FROM projects p
          LEFT JOIN organizations o ON o.id = p.organization_id
-         WHERE p.status IN ('active', 'in_process')
-         ORDER BY p.updated_at DESC
-         LIMIT 20`,
+         WHERE p.status IN ('active', 'in_process', 'production')
+         ORDER BY
+           CASE p.status WHEN 'production' THEN 0 WHEN 'active' THEN 1 ELSE 2 END,
+           p.updated_at DESC
+         LIMIT 30`,
       ),
       query(
         `SELECT oq.*, l.title AS lead_title, l.stage, c.email AS contact_email,
@@ -43,7 +45,16 @@ router.get('/', async (_req, res, next) => {
          WHERE jsonb_array_length(dn.action_items) > 0
          ORDER BY dn.updated_at DESC LIMIT 10`,
       ),
-      query(`SELECT mailbox, sync_type, last_sync_at FROM sync_state ORDER BY last_sync_at DESC`),
+      query(`SELECT mailbox, sync_type, last_sync_at, metadata FROM sync_state ORDER BY last_sync_at DESC`),
+      query(`SELECT COUNT(*)::int AS count FROM activities WHERE triage_status = 'pending'`),
+      query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM leads) AS leads,
+           (SELECT COUNT(*)::int FROM contacts) AS contacts,
+           (SELECT COUNT(*)::int FROM organizations) AS organizations,
+           (SELECT COUNT(*)::int FROM projects) AS projects,
+           (SELECT COUNT(*)::int FROM projects WHERE status = 'production') AS production_projects`,
+      ),
     ]);
 
     const funnelCounts = {};
@@ -57,6 +68,8 @@ router.get('/', async (_req, res, next) => {
       outreachQueue: outreach.rows,
       openActionItems: actionItems.rows,
       syncStatus: syncStatus.rows,
+      triageCount: triageCount.rows[0]?.count || 0,
+      counts: counts.rows[0],
     });
   } catch (err) {
     next(err);

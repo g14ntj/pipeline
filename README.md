@@ -99,20 +99,19 @@ bash deploy-to-gcp.sh
 
 Deploys Cloud Run service `pipeline-production` in `phoenician-production` / `us-west1`.
 
-**Secrets (GCP Secret Manager, `PIPELINE_*` prefix):**
-- `PIPELINE_GOOGLE_CLIENT_ID`
-- `PIPELINE_GOOGLE_CLIENT_SECRET`
+**Secrets (GCP Secret Manager):**
+- `PIPELINE_GOOGLE_CLIENT_ID` / `PIPELINE_GOOGLE_CLIENT_SECRET` (Pipeline Web OAuth — separate from Gmail Desktop client)
+- `PHOENICIANTECH_GMAIL_CLIENT_ID` / `PHOENICIANTECH_GMAIL_CLIENT_SECRET` (unchanged; used by compliance, phoeniciantech-web for email)
 - `PIPELINE_SESSION_SECRET`
-- `PIPELINE_DB_PASSWORD`
+- `PIPELINE_DATABASE_URL`
 - `PIPELINE_INTERNAL_SYNC_TOKEN`
-- `PIPELINE_SERVICE_ACCOUNT`
 
-**Post-deploy:**
-1. Map `pipeline.phoeniciantech.com` in Cloud Run → Manage Custom Domains
-2. Update Cloud DNS (`phoenician-tech-zone`)
-3. Create Cloud SQL instance `pipeline-db` (or configure existing)
-4. Run migrations against Cloud SQL
-5. Create Cloud Scheduler jobs hitting `/api/internal/sync/all`
+**Post-deploy (one-time):**
+1. OAuth redirect URI (Console only): `bash scripts/provision-oauth.sh`
+2. Domain-Wide Delegation for sync SA: `bash scripts/provision-dwd.sh`
+3. Map `pipeline.phoeniciantech.com` in Cloud Run → Manage Custom Domains (done by deploy script)
+4. Cloud DNS CNAME `pipeline` → `ghs.googlehosted.com` (done by deploy script)
+5. Cloud Scheduler job `pipeline-sync-all` (every 4h)
 
 ## Project structure
 

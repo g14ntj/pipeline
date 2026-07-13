@@ -34,19 +34,42 @@ docker push ${FULL_TAG}
 
 echo ""
 echo "[4/6] Deploying to Cloud Run service: ${SERVICE_NAME}..."
+ENV_FILE="$(mktemp)"
+cat > "${ENV_FILE}" <<EOF
+NODE_ENV: production
+SERVER_PORT: "8080"
+GCP_PROJECT: ${PROJECT_ID}
+GOOGLE_CLOUD_PROJECT: ${PROJECT_ID}
+APP_URL: https://${DOMAIN}
+API_URL: https://${DOMAIN}
+PIPELINE_GOOGLE_REDIRECT_URI: https://${DOMAIN}/api/auth/callback
+VERTEX_AI_LOCATION: ${REGION}
+ORACLE_USE_VERTEX_AI: "true"
+VERTEX_ORACLE_MODEL: gemini-2.5-flash
+PIPELINE_SYNC_MAILBOXES: sethpoor@phoeniciantech.com,jaredbodily@phoeniciantech.com
+PIPELINE_ALLOWED_USERS: jaredbodily@phoeniciantech.com,sethpoor@phoeniciantech.com
+PIPELINE_DRIVE_NOTES_FOLDER_ID: 1TnpEzm4C0r0uEZ6rr2ecF11liAgX95m-
+PIPELINE_GITHUB_OWNER: g14ntj
+PIPELINE_GCP_REGION: ${REGION}
+EOF
+
 gcloud run deploy ${SERVICE_NAME} \
   --image ${FULL_TAG} \
   --platform managed \
   --region ${REGION} \
   --project ${PROJECT_ID} \
+  --service-account pipeline-sync@${PROJECT_ID}.iam.gserviceaccount.com \
   --allow-unauthenticated \
   --add-cloudsql-instances "${PROJECT_ID}:${REGION}:${SQL_INSTANCE}" \
-  --set-env-vars "NODE_ENV=production,SERVER_PORT=8080,GCP_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_PROJECT=${PROJECT_ID},APP_URL=https://${DOMAIN},API_URL=https://${DOMAIN},PIPELINE_GOOGLE_REDIRECT_URI=https://${DOMAIN}/api/auth/callback,VERTEX_AI_LOCATION=${REGION},ORACLE_USE_VERTEX_AI=true,VERTEX_ORACLE_MODEL=gemini-2.5-flash,PIPELINE_SYNC_MAILBOXES=sethpoor@phoeniciantech.com,jared@phoeniciantech.com" \
-  --set-secrets "PIPELINE_GOOGLE_CLIENT_ID=PIPELINE_GOOGLE_CLIENT_ID:latest,PIPELINE_GOOGLE_CLIENT_SECRET=PIPELINE_GOOGLE_CLIENT_SECRET:latest,PIPELINE_SESSION_SECRET=PIPELINE_SESSION_SECRET:latest,PIPELINE_DB_PASSWORD=PIPELINE_DB_PASSWORD:latest,PIPELINE_INTERNAL_SYNC_TOKEN=PIPELINE_INTERNAL_SYNC_TOKEN:latest,PIPELINE_SERVICE_ACCOUNT=PIPELINE_SERVICE_ACCOUNT:latest,GOOGLE_GENERATIVE_AI_API_KEY=GOOGLE_GENERATIVE_AI_API_KEY:latest" \
+  --env-vars-file "${ENV_FILE}" \
+  --set-secrets "PIPELINE_GOOGLE_CLIENT_ID=PIPELINE_GOOGLE_CLIENT_ID:latest,PIPELINE_GOOGLE_CLIENT_SECRET=PIPELINE_GOOGLE_CLIENT_SECRET:latest,PIPELINE_SESSION_SECRET=PIPELINE_SESSION_SECRET:latest,PIPELINE_INTERNAL_SYNC_TOKEN=PIPELINE_INTERNAL_SYNC_TOKEN:latest,DATABASE_URL=PIPELINE_DATABASE_URL:latest,GOOGLE_GENERATIVE_AI_API_KEY=GOOGLE_GENERATIVE_AI_API_KEY:latest,PIPELINE_GITHUB_TOKEN=PIPELINE_GITHUB_TOKEN:latest" \
   --port 8080 \
   --memory 512Mi \
   --cpu 1 \
+  --timeout 900 \
   --quiet
+
+rm -f "${ENV_FILE}"
 
 echo ""
 echo "[5/6] Cloud SQL connection string reminder..."

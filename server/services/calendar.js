@@ -50,4 +50,20 @@ function suggestSlots(busyMap, durationMins = 30, count = 3) {
   return slots;
 }
 
-module.exports = { getCalendarClient, getFreeBusy, suggestSlots };
+async function listCalendarEvents(calendar, _calendarId, daysBack = 90, daysForward = 30) {
+  const timeMin = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();
+  const timeMax = new Date(Date.now() + daysForward * 24 * 60 * 60 * 1000).toISOString();
+
+  const res = await calendar.events.list({
+    calendarId: 'primary',
+    timeMin,
+    timeMax,
+    singleEvents: true,
+    orderBy: 'startTime',
+    maxResults: 250,
+  });
+
+  return res.data.items || [];
+}
+
+module.exports = { getCalendarClient, getFreeBusy, suggestSlots, listCalendarEvents };

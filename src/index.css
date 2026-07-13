@@ -1,18 +1,145 @@
 @import "tailwindcss";
 
 :root {
-  --brand: #1e3a5f;
-  --brand-light: #2d5a8e;
-  --accent: #c9a227;
+  --absolute-dark: #030213;
+  --navy-deep: #001b38;
+  --navy: #003b6f;
+  --cerulean: #3996c4;
+  --fragmented-red: #d4183d;
+  --paper: #fdfdfc;
+  --muted: #8b99a8;
+  --hair: rgba(57, 150, 196, 0.2);
+  --chip-bg: rgba(0, 59, 111, 0.5);
+  --background: var(--navy-deep);
+  --foreground: var(--paper);
+  --card: var(--navy);
+  --border: var(--hair);
+  --ring: var(--cerulean);
+  --radius: 12px;
 }
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #f4f6f9;
-  color: #1a1a2e;
+@theme inline {
+  --color-absolute-dark: var(--absolute-dark);
+  --color-navy-deep: var(--navy-deep);
+  --color-navy: var(--navy);
+  --color-cerulean: var(--cerulean);
+  --color-fragmented-red: var(--fragmented-red);
+  --color-paper: var(--paper);
+  --color-muted: var(--muted);
+  --color-hair: var(--hair);
+  --color-chip-bg: var(--chip-bg);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --font-display: "DM Sans", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 24px;
 }
 
-#root {
-  min-height: 100vh;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-navy-deep text-paper font-body antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight;
+  }
+}
+
+@layer utilities {
+  .udl-grid-lines {
+    background-image:
+      linear-gradient(to right, #3996c4 1px, transparent 1px),
+      linear-gradient(to bottom, #3996c4 1px, transparent 1px);
+    background-size: 80px 80px;
+  }
+
+  .glass-card {
+    @apply rounded-2xl border border-cerulean/20 bg-gradient-to-br from-white/5 to-transparent backdrop-blur-2xl shadow-[inset_0_2px_3px_rgba(255,255,255,0.08)];
+  }
+
+  .glass-card-hover {
+    @apply transition-colors hover:border-cerulean/40;
+  }
+
+  .page-shell {
+    @apply relative min-h-full p-6 md:p-8;
+  }
+
+  .page-title {
+    @apply font-display text-2xl font-bold text-paper;
+  }
+
+  .page-subtitle {
+    @apply text-sm text-muted;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-cerulean px-4 py-2.5 text-sm font-medium text-navy-deep transition-colors hover:bg-cerulean/85 disabled:opacity-50;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-cerulean/30 bg-navy/40 px-4 py-2.5 text-sm font-medium text-paper transition-colors hover:border-cerulean/60 hover:bg-navy/60;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm text-muted transition-colors hover:bg-white/5 hover:text-paper;
+  }
+
+  .input-field {
+    @apply w-full rounded-lg border border-cerulean/20 bg-navy-deep/60 px-3 py-2 text-sm text-paper placeholder:text-muted/70 focus:border-cerulean/50 focus:outline-none focus:ring-1 focus:ring-cerulean/30;
+  }
+
+  .data-table {
+    @apply w-full overflow-hidden rounded-2xl border border-cerulean/20 text-sm;
+  }
+
+  .data-table thead {
+    @apply border-b border-cerulean/20 bg-navy/60 text-left text-xs uppercase tracking-[0.08em] text-muted;
+  }
+
+  .data-table th {
+    @apply p-3 font-medium;
+  }
+
+  .data-table td {
+    @apply p-3;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-cerulean/10 transition-colors hover:bg-white/5;
+  }
+
+  .link-accent {
+    @apply text-cerulean transition-colors hover:text-paper hover:underline;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full border border-cerulean/20 bg-chip-bg px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-paper/80;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background-color: var(--cerulean);
+    border-radius: 10px;
+    opacity: 0.5;
+  }
 }

@@ -2,6 +2,7 @@ const { query } = require('../../db');
 const { getMailboxes } = require('../gmail');
 const { getDriveClient, listFilesInFolder, exportGoogleDoc } = require('../drive');
 const { extractMeetingNotes } = require('../gemini');
+const { curateFromOrganizationName } = require('../leadCurator');
 
 async function matchContactByAttendees(attendees) {
   for (const attendee of attendees || []) {
@@ -58,9 +59,25 @@ async function syncDriveNotes() {
 
     const contactId = await matchContactByAttendees(extracted.attendees);
 
+    let linkedLeadId = null;
+    let linkedOrgId = null;
+    if (extracted.organization) {
+      const mailboxes = getMailboxes();
+      const curated = await curateFromOrganizationName({
+        organizationName: extracted.organization,
+        attendees: extracted.attendees,
+        subject: file.name,
+        mailbox: mailboxes[0],
+      });
+      if (curated) {
+        linkedLeadId = curated.lead?.id || null;
+        linkedOrgId = curated.org?.id || null;
+      }
+    }
+
     const note = await query(
-      `INSERT INTO drive_notes (drive_file_id, title, attendees, decisions, action_items, extracted_at, linked_contact_id)
-       VALUES ($1, $2, $3, $4, $5, NOW(), $6) RETURNING id`,
+      `INSERT INTO drive_notes (drive_file_id, title, attendees, decisions, action_items, extracted_at, linked_contact_id, linked_lead_id)
+       VALUES ($1, $2, $3, $4, $5, NOW(), $6, $7) RETURNING id`,
       [
         file.id,
         file.name,
@@ -68,12 +85,13 @@ async function syncDriveNotes() {
         extracted.decisions || null,
         JSON.stringify(extracted.action_items || []),
         contactId,
+        linkedLeadId,
       ],
     );
 
     const activity = await query(
-      `INSERT INTO activities (type, summary, raw_ref, metadata)
-       VALUES ('drive_doc', $1, $2, $3) RETURNING id`,
+      `INSERT INTO activities (type, summary, raw_ref, metadata, triage_status)
+       VALUES ('drive_doc', $1, $2, $3, 'matched') RETURNING id`,
       [
         extracted.decisions || `Meeting notes: ${file.name}`,
         `drive:${file.id}`,

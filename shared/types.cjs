@@ -17,7 +17,7 @@ const LEAD_STAGES = [
   'nurture',
 ];
 
-const PROJECT_STATUSES = ['active', 'in_process', 'completed', 'on_hold'];
+const PROJECT_STATUSES = ['active', 'in_process', 'production', 'completed', 'on_hold'];
 
 const ACTIVITY_TYPES = ['email', 'meeting', 'call', 'note', 'drive_doc'];
 
@@ -26,6 +26,11 @@ const ORG_SECTORS = ['public', 'private'];
 const PRODUCT_LINES = ['Beacon', 'Nexus', 'consulting', 'other'];
 
 const ALLOWED_DOMAIN = 'phoeniciantech.com';
+
+const ALLOWED_USERS = [
+  'jaredbodily@phoeniciantech.com',
+  'sethpoor@phoeniciantech.com',
+];
 
 const STALE_LEAD_DAYS = 14;
 
@@ -36,5 +41,6 @@ module.exports = {
   ORG_SECTORS,
   PRODUCT_LINES,
   ALLOWED_DOMAIN,
+  ALLOWED_USERS,
   STALE_LEAD_DAYS,
 };

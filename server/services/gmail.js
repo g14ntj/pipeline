@@ -1,4 +1,5 @@
-const { GoogleAuth } = require('google-auth-library');
+const fs = require('fs');
+const { JWT, GoogleAuth } = require('google-auth-library');
 const { gmail: gmailApi } = require('@googleapis/gmail');
 
 const SCOPES = [
@@ -7,28 +8,119 @@ const SCOPES = [
   'https://www.googleapis.com/auth/calendar.readonly',
 ];
 
+const DEFAULT_SA_EMAIL = 'pipeline-sync@phoenician-production.iam.gserviceaccount.com';
+
 function getMailboxes() {
   const raw = (process.env.PIPELINE_SYNC_MAILBOXES || '').trim();
   return raw ? raw.split(',').map((m) => m.trim()).filter(Boolean) : [];
 }
 
+function loadServiceAccountJson() {
+  const inline = (process.env.PIPELINE_SERVICE_ACCOUNT_JSON || '').trim();
+  if (inline) {
+    try {
+      return JSON.parse(inline);
+    } catch (err) {
+      console.warn('[GMAIL] Invalid PIPELINE_SERVICE_ACCOUNT_JSON:', err.message);
+    }
+  }
+
+  const credPath = (process.env.GOOGLE_APPLICATION_CREDENTIALS || '').trim();
+  if (credPath && fs.existsSync(credPath)) {
+    return JSON.parse(fs.readFileSync(credPath, 'utf8'));
+  }
+
+  return null;
+}
+
+function getServiceAccountEmail(saJson) {
+  return (
+    saJson?.client_email ||
+    process.env.PIPELINE_SYNC_SERVICE_ACCOUNT ||
+    process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL ||
+    DEFAULT_SA_EMAIL
+  );
+}
+
+/**
+ * Domain-wide delegation via IAM signJwt (no SA key file required on Cloud Run).
+ */
+async function getDelegatedClientViaIam(subject, saEmail) {
+  const auth = new GoogleAuth({
+    scopes: ['https://www.googleapis.com/auth/cloud-platform'],
+  });
+  const client = await auth.getClient();
+  const now = Math.floor(Date.now() / 1000);
+
+  const payload = JSON.stringify({
+    iss: saEmail,
+    sub: subject,
+    scope: SCOPES.join(' '),
+    aud: 'https://oauth2.googleapis.com/token',
+    iat: now,
+    exp: now + 3600,
+  });
+
+  const signUrl =
+    `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${encodeURIComponent(saEmail)}:signJwt`;
+
+  const signRes = await client.request({
+    url: signUrl,
+    method: 'POST',
+    data: { payload },
+  });
+
+  const assertion = signRes.data.signedJwt;
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+      assertion,
+    }),
+  });
+
+  if (!tokenRes.ok) {
+    const errText = await tokenRes.text();
+    throw new Error(`DWD token exchange failed (${tokenRes.status}): ${errText}`);
+  }
+
+  const tokens = await tokenRes.json();
+  const oauth = new GoogleAuth({ scopes: SCOPES });
+  const oauthClient = await oauth.getClient();
+  oauthClient.setCredentials({
+    access_token: tokens.access_token,
+    token_type: tokens.token_type || 'Bearer',
+    expiry_date: Date.now() + (tokens.expires_in || 3600) * 1000,
+  });
+  return oauthClient;
+}
+
 async function getDelegatedClient(subject) {
   const isLocal = process.env.NODE_ENV !== 'production';
-  const hasCreds = process.env.GOOGLE_APPLICATION_CREDENTIALS || process.env.GCP_PROJECT;
+  const saJson = loadServiceAccountJson();
+  const saEmail = getServiceAccountEmail(saJson);
 
-  if (isLocal && !hasCreds) {
-    console.log('[GMAIL] Skipping DWD client (no credentials in local dev)');
+  if (saJson?.client_email && saJson?.private_key) {
+    return new JWT({
+      email: saJson.client_email,
+      key: saJson.private_key,
+      scopes: SCOPES,
+      subject,
+    });
+  }
+
+  if (isLocal && !process.env.GCP_PROJECT) {
+    console.log('[GMAIL] No credentials — skipping DWD client in local dev');
     return null;
   }
 
-  const auth = new GoogleAuth({ scopes: SCOPES });
-  const client = await auth.getClient();
-
-  if (client.constructor.name === 'JWT' || client.constructor.name === 'Compute') {
-    client.subject = subject;
+  try {
+    return await getDelegatedClientViaIam(subject, saEmail);
+  } catch (err) {
+    console.error(`[GMAIL] DWD auth failed for ${subject}:`, err.message);
+    throw err;
   }
-
-  return client;
 }
 
 async function getGmailForMailbox(mailbox) {

@@ -17,28 +17,34 @@ export function ProjectsPage() {
   }, []);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-[var(--brand)] mb-6">Projects</h1>
-      <table className="w-full bg-white rounded-xl shadow-sm border text-sm">
-        <thead>
-          <tr className="border-b text-left text-gray-500">
-            <th className="p-3">Name</th>
-            <th className="p-3">Status</th>
-            <th className="p-3">Product</th>
-            <th className="p-3">Organization</th>
-          </tr>
-        </thead>
-        <tbody>
-          {projects.map((p) => (
-            <tr key={p.id} className="border-b hover:bg-gray-50">
-              <td className="p-3 font-medium">{p.name}</td>
-              <td className="p-3 capitalize">{p.status.replace('_', ' ')}</td>
-              <td className="p-3 text-gray-500">{p.product_line || '—'}</td>
-              <td className="p-3 text-gray-500">{p.organization_name || '—'}</td>
+    <div className="page-shell">
+      <h1 className="page-title mb-6">Projects</h1>
+      <div className="data-table overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Product</th>
+              <th>Organization</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+              {projects.map((p) => (
+              <tr key={p.id}>
+                <td className="font-medium text-paper">{p.name}</td>
+                <td>
+                  <span className={p.status === 'production' ? 'chip' : 'capitalize text-muted'}>
+                    {p.status}
+                  </span>
+                </td>
+                <td className="text-muted">{p.product_line || '—'}</td>
+                <td className="text-muted">{p.organization_name || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

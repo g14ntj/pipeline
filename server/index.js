@@ -23,6 +23,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const triageRoutes = require('./routes/triage');
 const outreachRoutes = require('./routes/outreach');
 const syncRoutes = require('./routes/internal/sync');
+const { runMigrations } = require('./migrate');
 
 const app = express();
 const PORT = Number(process.env.SERVER_PORT || 8081);
@@ -82,12 +83,18 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, service: 'pipeline' });
 });
 
-// Serve React build in production
+// Serve React build in production — require sign-in for all app routes
 const distPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distPath)) {
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, { index: false }));
   app.get('*', (req, res, next) => {
     if (req.path.startsWith('/api')) return next();
+
+    const isLoginPage = req.path === '/login' || req.path === '/login/';
+    if (!isLoginPage && !req.session?.user) {
+      return res.redirect('/login');
+    }
+
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
@@ -97,8 +104,18 @@ app.use((err, _req, res, _next) => {
   res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`[PIPELINE] Server listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
-});
+async function start() {
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error('[PIPELINE] Migration failed:', err.message);
+  }
+
+  app.listen(PORT, () => {
+    console.log(`[PIPELINE] Server listening on port ${PORT} (${isProd ? 'production' : 'development'})`);
+  });
+}
+
+start();
 
 module.exports = app;

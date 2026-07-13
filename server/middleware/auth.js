@@ -1,12 +1,25 @@
+const { isAllowedUser } = require('../auth');
+
 function requireAuth(req, res, next) {
-  if (req.session?.user) {
-    return next();
+  const user = req.session?.user;
+  if (!user) {
+    return res.status(401).json({ error: 'Authentication required' });
   }
-  return res.status(401).json({ error: 'Authentication required' });
+  if (!isAllowedUser(user.email)) {
+    req.session.destroy(() => {});
+    return res.status(403).json({ error: 'Your account is not authorized to access Pipeline' });
+  }
+  return next();
 }
 
 function attachUser(req, res, next) {
-  req.user = req.session?.user || null;
+  const user = req.session?.user;
+  if (user && !isAllowedUser(user.email)) {
+    req.session.destroy(() => {});
+    req.user = null;
+  } else {
+    req.user = user || null;
+  }
   next();
 }
 

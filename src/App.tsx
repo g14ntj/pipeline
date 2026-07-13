@@ -37,7 +37,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-gray-400">
+      <div className="flex min-h-screen items-center justify-center bg-navy-deep text-muted">
         Loading…
       </div>
     );

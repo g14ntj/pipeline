@@ -24,30 +24,30 @@ export function ContactDetailPage() {
     });
   }, [params?.id]);
 
-  if (!contact) return <div className="p-8 text-gray-500">Loading…</div>;
+  if (!contact) return <div className="page-shell text-muted">Loading…</div>;
 
   return (
-    <div className="p-6 max-w-3xl">
-      <h1 className="text-2xl font-bold text-[var(--brand)]">
+    <div className="page-shell max-w-3xl">
+      <h1 className="page-title">
         {contact.first_name} {contact.last_name}
       </h1>
-      <p className="text-gray-500 text-sm mb-6">
+      <p className="page-subtitle mb-6">
         {contact.email} {contact.organization_name && `· ${contact.organization_name}`}
       </p>
 
-      <h2 className="font-semibold mb-3">Communication Timeline</h2>
+      <h2 className="mb-3 font-display text-lg font-semibold text-paper">Communication Timeline</h2>
       {timeline.length === 0 ? (
-        <p className="text-sm text-gray-400">No activities yet</p>
+        <p className="text-sm text-muted">No activities yet</p>
       ) : (
         <ul className="space-y-3">
           {timeline.map((item) => (
-            <li key={item.id} className="bg-white border rounded-lg p-4 text-sm">
-              <div className="flex justify-between text-gray-400 text-xs mb-1">
+            <li key={item.id} className="glass-card p-4 text-sm">
+              <div className="mb-1 flex justify-between text-xs text-muted">
                 <span className="capitalize">{item.type}</span>
                 <span>{format(new Date(item.occurred_at), 'MMM d, yyyy h:mm a')}</span>
               </div>
-              {item.metadata?.subject && <p className="font-medium">{item.metadata.subject}</p>}
-              <p className="text-gray-600">{item.summary}</p>
+              {item.metadata?.subject && <p className="font-medium text-paper">{item.metadata.subject}</p>}
+              <p className="text-muted">{item.summary}</p>
             </li>
           ))}
         </ul>

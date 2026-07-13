@@ -22,35 +22,37 @@ export function ContactsPage() {
     });
   }, []);
 
-  if (loading) return <div className="p-8 text-gray-500">Loading contacts…</div>;
+  if (loading) return <div className="page-shell text-muted">Loading contacts…</div>;
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-[var(--brand)] mb-6">Contacts</h1>
-      <table className="w-full bg-white rounded-xl shadow-sm border text-sm">
-        <thead>
-          <tr className="border-b text-left text-gray-500">
-            <th className="p-3">Name</th>
-            <th className="p-3">Email</th>
-            <th className="p-3">Organization</th>
-            <th className="p-3">Role</th>
-          </tr>
-        </thead>
-        <tbody>
-          {contacts.map((c) => (
-            <tr key={c.id} className="border-b hover:bg-gray-50">
-              <td className="p-3">
-                <Link href={`/contacts/${c.id}`} className="font-medium text-[var(--brand-light)] hover:underline">
-                  {c.first_name} {c.last_name}
-                </Link>
-              </td>
-              <td className="p-3 text-gray-500">{c.email || '—'}</td>
-              <td className="p-3 text-gray-500">{c.organization_name || '—'}</td>
-              <td className="p-3 text-gray-500">{c.role || '—'}</td>
+    <div className="page-shell">
+      <h1 className="page-title mb-6">Contacts</h1>
+      <div className="data-table overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Organization</th>
+              <th>Role</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {contacts.map((c) => (
+              <tr key={c.id}>
+                <td>
+                  <Link href={`/contacts/${c.id}`} className="link-accent font-medium">
+                    {c.first_name} {c.last_name}
+                  </Link>
+                </td>
+                <td className="text-muted">{c.email || '—'}</td>
+                <td className="text-muted">{c.organization_name || '—'}</td>
+                <td className="text-muted">{c.role || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

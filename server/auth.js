@@ -1,8 +1,21 @@
 const { OAuth2Client } = require('google-auth-library');
-const { ALLOWED_DOMAIN } = require('../shared/types.cjs');
+const { ALLOWED_DOMAIN, ALLOWED_USERS } = require('../shared/types.cjs');
 
 function trimEnv(name) {
   return (process.env[name] || '').trim();
+}
+
+function getAllowedUsers() {
+  const fromEnv = trimEnv('PIPELINE_ALLOWED_USERS');
+  if (fromEnv) {
+    return fromEnv.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  }
+  return ALLOWED_USERS.map((e) => e.toLowerCase());
+}
+
+function isAllowedUser(email) {
+  if (!email) return false;
+  return getAllowedUsers().includes(email.toLowerCase());
 }
 
 function getOAuthClient() {
@@ -25,12 +38,8 @@ function getAuthUrl() {
 
   return client.generateAuthUrl({
     access_type: 'offline',
-    prompt: 'consent',
-    scope: [
-      'openid',
-      'email',
-      'profile',
-    ],
+    prompt: 'select_account',
+    scope: ['openid', 'email', 'profile'],
     hd: ALLOWED_DOMAIN,
   });
 }
@@ -61,6 +70,10 @@ async function exchangeCode(code) {
     throw new Error(`Hosted domain mismatch: ${payload.hd}`);
   }
 
+  if (!isAllowedUser(email)) {
+    throw new Error('Your account is not authorized to access Pipeline');
+  }
+
   return {
     email,
     name: payload.name || email,
@@ -73,4 +86,4 @@ function oauthConfigured() {
   return Boolean(trimEnv('PIPELINE_GOOGLE_CLIENT_ID') && trimEnv('PIPELINE_GOOGLE_CLIENT_SECRET'));
 }
 
-module.exports = { getAuthUrl, exchangeCode, oauthConfigured, getOAuthClient };
+module.exports = { getAuthUrl, exchangeCode, oauthConfigured, getOAuthClient, isAllowedUser, getAllowedUsers };
