@@ -49,7 +49,7 @@ VERTEX_ORACLE_MODEL: gemini-2.5-flash
 PIPELINE_SYNC_MAILBOXES: sethpoor@phoeniciantech.com,jaredbodily@phoeniciantech.com
 PIPELINE_ALLOWED_USERS: jaredbodily@phoeniciantech.com,sethpoor@phoeniciantech.com
 PIPELINE_DRIVE_NOTES_FOLDER_ID: 1TnpEzm4C0r0uEZ6rr2ecF11liAgX95m-
-PIPELINE_GITHUB_OWNER: g14ntj
+PIPELINE_GITHUB_OWNER: phoeniciantech
 PIPELINE_GCP_REGION: ${REGION}
 EOF
 

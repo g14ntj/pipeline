@@ -110,19 +110,46 @@ async function listCloudRunServices(project, region) {
 async function listGitHubRepos(owner, token) {
   if (!token) return [];
 
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+  };
+
+  // Prefer org listing when PIPELINE_GITHUB_OWNER is an organization (e.g. phoeniciantech).
+  if (owner) {
+    const orgRepos = [];
+    let page = 1;
+    let orgExists = false;
+
+    while (page <= 10) {
+      const url = `https://api.github.com/orgs/${encodeURIComponent(owner)}/repos?per_page=100&page=${page}&sort=updated&type=all`;
+      const res = await fetch(url, { headers });
+      if (res.status === 404) break; // not an org — fall back to user repos
+      if (!res.ok) {
+        console.warn('[GITHUB-GCP] GitHub org repos error:', res.status, await res.text());
+        break;
+      }
+      orgExists = true;
+      const batch = await res.json();
+      if (!batch.length) break;
+      orgRepos.push(...batch);
+      if (batch.length < 100) break;
+      page++;
+    }
+
+    if (orgExists) {
+      return orgRepos.map(mapGithubRepo);
+    }
+  }
+
   const repos = [];
   let page = 1;
 
   while (page <= 5) {
-    const url = `https://api.github.com/user/repos?per_page=100&page=${page}&affiliation=owner&sort=updated`;
+    const url = `https://api.github.com/user/repos?per_page=100&page=${page}&affiliation=owner,organization_member&sort=updated`;
 
-    const res = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-    });
+    const res = await fetch(url, { headers });
 
     if (!res.ok) {
       console.warn('[GITHUB-GCP] GitHub API error:', res.status, await res.text());
@@ -141,14 +168,18 @@ async function listGitHubRepos(owner, token) {
     page++;
   }
 
-  return repos.map((r) => ({
+  return repos.map(mapGithubRepo);
+}
+
+function mapGithubRepo(r) {
+  return {
     name: r.name,
     fullName: r.full_name,
     description: r.description || '',
     htmlUrl: r.html_url,
     updatedAt: r.updated_at,
     private: r.private,
-  }));
+  };
 }
 
 async function findOrCreateOrg({ name, sector, tags }) {
@@ -191,7 +222,8 @@ async function upsertProject({ name, orgId, status, productLine, description, ex
 async function runGithubGcpSync() {
   const project = process.env.GCP_PROJECT || process.env.GOOGLE_CLOUD_PROJECT || 'phoenician-production';
   const region = process.env.PIPELINE_GCP_REGION || 'us-west1';
-  const githubOwner = (process.env.PIPELINE_GITHUB_OWNER || '').trim();
+  // Default to the Phoenician GitHub org — never fall back to a personal account.
+  const githubOwner = (process.env.PIPELINE_GITHUB_OWNER || 'phoeniciantech').trim();
   const githubToken = (process.env.PIPELINE_GITHUB_TOKEN || process.env.GITHUB_TOKEN || '').trim();
 
   const [services, repos] = await Promise.all([
